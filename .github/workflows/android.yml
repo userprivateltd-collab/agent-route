@@ -18,17 +18,19 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'temurin' # <--- Fixed: Required parameter added
+          distribution: 'temurin'
           cache: 'gradle'
 
       - name: Make Gradle wrapper executable
+        working-directory: ./your-folder-name # <--- Change to your subfolder path
         run: chmod +x ./gradlew
 
       - name: Build Debug APK
+        working-directory: ./your-folder-name # <--- Change to your subfolder path
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: your-folder-name/app/build/outputs/apk/debug/app-debug.apk
