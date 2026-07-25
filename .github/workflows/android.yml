@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Android CI
 
 on:
   push:
@@ -11,19 +11,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        cache: 'gradle'
-        
-    - name: Build with Gradle
-      run: ./gradlew assembleDebug
-      
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: debug-apk
-        path: app/build/outputs/apk/debug/*.apk
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin' # <--- Fixed: Required parameter added
+          cache: 'gradle'
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
