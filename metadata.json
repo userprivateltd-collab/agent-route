@@ -1,0 +1,6 @@
+{
+  "name": "Route Agent",
+  "description": "AI-Powered Call Screening app that intercepts incoming calls and interacts with callers using Gemini AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
