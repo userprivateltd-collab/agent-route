@@ -35,13 +35,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val allSessions: StateFlow<List<CallSession>> = repository.allSessions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val _selectedSessionId = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val selectedSessionId: StateFlow<String?> = _selectedSessionId
+
+    val selectedSession: StateFlow<CallSession?> = kotlinx.coroutines.flow.combine(allSessions, _selectedSessionId) { sessions, id ->
+        sessions.find { it.id == id }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val selectedMessages: StateFlow<List<CallMessage>> = _selectedSessionId.flatMapLatest { id ->
+        if (id != null) {
+            repository.getMessagesForSession(id)
+        } else {
+            flowOf(emptyList())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun selectSession(sessionId: String) {
+        _selectedSessionId.value = sessionId
+    }
+
     fun humanTakeover() {
         val currentSession = activeSession.value
         if (currentSession != null) {
             viewModelScope.launch {
                 repository.updateSessionStatus(currentSession.id, "human_takeover")
-                // Normally this would also signal telecom to un-silence or accept the call,
-                // but in this simulation we just update the state.
             }
         }
     }

@@ -73,12 +73,16 @@ fun MainScreen(viewModel: MainViewModel) {
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
     val activeMessages by viewModel.activeMessages.collectAsStateWithLifecycle()
 
+    val selectedSession by viewModel.selectedSession.collectAsStateWithLifecycle()
+    val selectedMessages by viewModel.selectedMessages.collectAsStateWithLifecycle()
+
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
     val coroutineScope = rememberCoroutineScope()
     
     // Automatically navigate to Detail pane if there is an active session
     androidx.compose.runtime.LaunchedEffect(activeSession) {
         if (activeSession != null) {
+            viewModel.selectSession(activeSession!!.id)
             navigator.navigateTo(ListDetailPaneScaffoldRole.Detail)
         }
     }
@@ -100,23 +104,24 @@ fun MainScreen(viewModel: MainViewModel) {
             value = navigator.scaffoldValue,
             modifier = Modifier.padding(innerPadding).fillMaxSize(),
             listPane = {
-                SessionListPane(
+                CallSummaryPane(
                     sessions = allSessions,
                     onSessionClick = { 
+                        viewModel.selectSession(it.id)
                         coroutineScope.launch { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail) }
                     }
                 )
             },
             detailPane = {
-                if (activeSession != null) {
-                    ActiveCallPane(
-                        session = activeSession!!,
-                        messages = activeMessages,
+                if (selectedSession != null) {
+                    CallDetailPane(
+                        session = selectedSession!!,
+                        messages = selectedMessages,
                         onTakeover = { viewModel.humanTakeover() }
                     )
                 } else {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("No active call", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("No call selected", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -125,7 +130,7 @@ fun MainScreen(viewModel: MainViewModel) {
 }
 
 @Composable
-fun SessionListPane(
+fun CallSummaryPane(
     sessions: List<CallSession>,
     onSessionClick: (CallSession) -> Unit
 ) {
@@ -135,28 +140,40 @@ fun SessionListPane(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
-            Text("Call History", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
+            Text("Screened Calls Summary", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
         }
         items(sessions) { session ->
             Card(
                 onClick = { onSessionClick(session) },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(session.callerNumber, fontWeight = FontWeight.Bold)
-                        Text(formatTime(session.startTime), style = MaterialTheme.typography.bodySmall)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(session.callerNumber, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(formatTime(session.startTime), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     val statusColor = when (session.status) {
                         "active" -> MaterialTheme.colorScheme.primary
+                        "completed" -> MaterialTheme.colorScheme.primary
                         "human_takeover" -> MaterialTheme.colorScheme.error
                         else -> MaterialTheme.colorScheme.secondary
                     }
-                    Text(session.status.uppercase(), color = statusColor, style = MaterialTheme.typography.labelMedium)
+                    val statusIcon = when (session.status) {
+                        "active" -> Icons.Default.SmartToy
+                        "human_takeover" -> Icons.Default.Person
+                        else -> Icons.Default.Call
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(session.status.replace("_", " ").uppercase(), color = statusColor, style = MaterialTheme.typography.labelMedium)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(statusIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
         }
@@ -164,7 +181,7 @@ fun SessionListPane(
 }
 
 @Composable
-fun ActiveCallPane(
+fun CallDetailPane(
     session: CallSession,
     messages: List<CallMessage>,
     onTakeover: () -> Unit
@@ -178,12 +195,17 @@ fun ActiveCallPane(
             Spacer(modifier = Modifier.height(16.dp))
             Text("AI Screening Active", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
             Text(session.callerNumber, style = MaterialTheme.typography.bodyLarge)
-            
             Spacer(modifier = Modifier.height(24.dp))
-        } else {
+        } else if (session.status == "human_takeover") {
             Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.error)
             Spacer(modifier = Modifier.height(16.dp))
             Text("Human Takeover", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.error)
+            Text(session.callerNumber, style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.height(24.dp))
+        } else {
+            Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Call Completed", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
             Text(session.callerNumber, style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(24.dp))
         }
